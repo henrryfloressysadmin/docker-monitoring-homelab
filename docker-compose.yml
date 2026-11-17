@@ -17,7 +17,7 @@ services:
     image: 'portainer/portainer-ce:latest'
     container_name: portainer_management
     restart: unless-stopped
-    command: --bind=:9000 --bind-https=:9443
+    command: -H unix:///var/run/docker.sock --address 0.0.0.0:9000 --address-https 0.0.0.0:9443
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - portainer_data:/data
@@ -33,12 +33,51 @@ services:
     networks:
       - red-compartida
 
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node_exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+    networks:
+      - red-compartida
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus_db
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - red-compartida
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana_dashboard
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin_password_seguro
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - red-compartida
+
 volumes:
   portainer_data:
     name: portainer_db_data
+  prometheus_data:
+    name: prometheus_metrics_data
+  grafana_data:
+    name: grafana_dashboard_data
 
 networks:
   red-compartida:
     external: true
     name: red-publica-shared
-

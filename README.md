@@ -1,24 +1,36 @@
-# 🚀 Homelab: Stack de Infraestructura & SysAdmin Seguro con Docker Compose
+# 🚀 Homelab: Infraestructura Docker, Seguridad Zero-Trust y Observabilidad
 
-Este repositorio contiene la arquitectura de un laboratorio de infraestructura (*Homelab*) diseñado bajo estándares profesionales de producción, desplegado sobre **Ubuntu Server** (VirtualBox en modo *Bridge*) y administrado remotamente vía **SSH** desde un entorno anfitrión con Windows 11.
+Este repositorio contiene la arquitectura como código (IaC) de un entorno de infraestructura (*Homelab*) desplegado sobre **Ubuntu Server** (VirtualBox en modo *Bridge*) y administrado remotamente vía **SSH** desde un entorno anfitrión.
 
 ## 🛠️ Stack Tecnológico
 
-* **Servidor Host:** VirtualBox (Adaptador Puente) / Ubuntu Server
-* **Gestión de Contenedores:** Docker & Docker Compose v2+
-* **Enrutamiento e Ingress:** Nginx Proxy Manager (NPM)
-* **Gestión Gráfica:** Portainer CE
+* **Infraestructura Base:** Ubuntu Server / Docker Engine & Docker Compose v2
+* **Ingress y Reverse Proxy:** Nginx Proxy Manager (NPM)
+* **Orquestación y Gestión:** Portainer CE
+* **Servicio Web:** Nginx (Imagen ligera Alpine)
+* **Observabilidad y Métricas:** Prometheus, Node Exporter y Grafana OSS
 
 ---
 
 ## 🔒 Arquitectura de Red y Seguridad (Zero-Trust)
 
-A diferencia de configuraciones básicas de laboratorio donde se exponen todos los puertos al Host, este entorno implementa principios de **seguridad defensiva y aislamiento por capas**:
+Este laboratorio implementa principios de seguridad defensiva y aislamiento por capas para eliminar superficies de ataque innecesarias:
 
-1. **Punto de Entrada Único:** Solo los puertos de **Nginx Proxy Manager (`80` y `443`)** y el panel de gestión del proxy (`81`) están expuestos hacia la red externa.
-2. **Puertos del Host Cerrados:** Los servicios de **Portainer (puerto interno `9000`)** y la **Landing Page de Nginx (puerto interno `80`)** no exponen puertos hacia la IP del servidor Ubuntu. Están blindados contra escaneos de puertos externos.
-3. **Pasillos Internos (Redes Docker):** Todo el tráfico se resuelve de manera interna a través de una red compartida aislada (`red-publica-shared`). Nginx Proxy Manager actúa como el único intermediario (Proxy Inverso), enrutando las peticiones mediante el DNS interno de Docker utilizando los nombres de los servicios (`http://portainer:9000` y `http://nginx-web:80`).
-4. **Seguridad del Socket:** El socket de Docker (`/var/run/docker.sock`) se monta en Portainer bajo el esquema de **Solo Lectura (`:ro`)** para mitigar riesgos de escalada de privilegios si el contenedor se ve comprometido.
+1. **Punto de Entrada Único:** Únicamente los puertos de **Nginx Proxy Manager (`80`, `443`)** y su interfaz de administración (`81`) están expuestos hacia la red local.
+2. **Aislamiento de Servicios Internos:** Los contenedores de **Portainer (`9000`)**, **Nginx Web (`80`)**, **Prometheus (`9090`)**, **Node Exporter (`9100`)** y **Grafana (`3000`)** carecen de puertos mapeados hacia el host, quedando blindados frente a escaneos externos.
+3. **Enrutamiento por DNS Interno:** Todo el tráfico fluye a través de una red puente externa aislada (`red-publica-shared`). NPM actúa como intermediario enrutando peticiones mediante resolución de nombres internos de Docker (`portainer.local`, `miweb.local`, `grafana.local`).
+4. **Hardening de Privilegios:** El socket de Docker (`/var/run/docker.sock`) se monta en Portainer en modo de **Solo Lectura (`:ro`)** para mitigar riesgos de escalada de privilegios.
+
+---
+
+## 📊 Capa de Observabilidad en Tiempo Real
+
+El entorno integra una solución completa de monitorización de hardware y rendimiento:
+* **Node Exporter:** Recolecta métricas nativas del kernel de Linux (CPU, memoria RAM, almacenamiento y tráfico de red).
+* **Prometheus:** Base de datos de series temporales encargada de extraer (*scrape*) los datos cada 15 segundos.
+* **Grafana:** Panel de visualización interactivo accesible mediante `http://grafana.local` utilizando el dashboard oficial **Node Exporter Full (ID 1860)**.
+
+![Dashboard de Grafana](img/grafana-dashboard.png)
 
 ---
 
@@ -26,20 +38,22 @@ A diferencia de configuraciones básicas de laboratorio donde se exponen todos l
 
 ```text
 proyecto-nginx-homelab/
-├── .gitignore            # Filtro de seguridad para datos persistentes
-├── README.md             # Documentación del proyecto
-├── docker-compose.yml    # Declaración de la infraestructura como código (IaC)
-├── index.html            # Landing page estática de producción
+├── .gitignore                 # Exclusión de volúmenes locales y datos sensibles
+├── README.md                  # Documentación técnica y bitácora de ingeniería
+├── docker-compose.yml         # Definición completa del stack de servicios
+├── index.html                 # Aplicación web estática de prueba
+├── img/
+│   └── grafana-dashboard.png  # Evidencia visual del monitoreo en vivo
 └── prometheus/
-    └── prometheus.yml    # Configuración de recolección de métricas
+    └── prometheus.yml         # Configuración de objetivos (targets) de Prometheus
 ```
 
 ---
 
 ## 🚀 Guía de Despliegue Rápido
 
-### 1. Simulación de Dominios Locales (Host Anfitrión)
-Para resolver los dominios de pruebas corporativos de este laboratorio, añade las siguientes líneas al archivo `hosts` de tu sistema anfitrión (`C:\Windows\System32\drivers\etc\hosts` en Windows o `/etc/hosts` en macOS/Linux):
+### 1. Resolución de Dominios Locales (Equipo Anfitrión)
+Añade las siguientes entradas en el archivo `hosts` de tu sistema operativo anfitrión (`C:\Windows\System32\drivers\etc\hosts` en Windows o `/etc/hosts` en macOS/Linux):
 
 ```text
 <IP_DE_TU_VM_UBUNTU>   portainer.local
@@ -47,39 +61,34 @@ Para resolver los dominios de pruebas corporativos de este laboratorio, añade l
 <IP_DE_TU_VM_UBUNTU>   grafana.local
 ```
 
-### 2. Inicialización del Entorno
-Clona este repositorio en tu servidor Ubuntu, crea la red puente compartida externa y levanta el stack en segundo plano:
-
+### 2. Creación de Red e Inicialización
 ```bash
-# Crear la red externa requerida por la infraestructura
+# 1. Clonar el repositorio
+git clone https://github.com
+cd proyecto-nginx-homelab
+
+# 2. Crear la red puente compartida externa
 docker network create red-publica-shared
 
-# Levantar todos los servicios en modo desatendido
+# 3. Desplegar toda la infraestructura en segundo plano
 docker compose up -d
 ```
 
 ---
 
-## 📊 Próxima Fase: Capa de Observabilidad
-El stack cuenta con las bases listas para acoplar un entorno de monitoreo avanzado utilizando **Prometheus, Grafana y Google cAdvisor**, permitiendo recolectar y visualizar métricas de consumo de CPU, memoria y red de cada contenedor en tiempo real a través de `http://grafana.local`.
-
 ## 🛠️ Bitácora de Diagnóstico y Solución de Problemas (Troubleshooting)
 
-Durante el despliegue y hardening (aseguramiento) de esta infraestructura, surgieron retos técnicos reales de comunicación en redes virtuales. A continuación se documenta el diagnóstico y la solución aplicada para cada uno:
+Durante el despliegue y aseguramiento del laboratorio se diagnosticaron y resolvieron incidencias reales de infraestructura:
 
-### 1. Error de Sintaxis en Redes de Docker Compose (Línea `comment:`)
-*   **Síntoma:** Al ejecutar `docker compose ps` o levantar el entorno, el motor de Docker devolvía el error: `networks.proxy-public additional properties 'comment' not allowed`.
-*   **Causa:** Se intentaron incluir comentarios descriptivos usando la propiedad no soportada `comment` dentro de la especificación nativa del esquema de redes de Docker Compose.
-*   **Diagnóstico:** Inspección directa del esquema con la terminal arrojando error de validación. La red `mgmt-private` no se creaba en el Daemon de Docker (`network not found`).
-*   **Solución:** Se editó el archivo `docker-compose.yml` para remover la propiedad inválida, limpiando la declaración de redes bajo el driver `bridge` estándar y forzando el despliegue limpio.
-
-### 2. Error 502 Bad Gateway en `portainer.local` (Aislamiento Excesivo de Interfaces)
-*   **Síntoma:** Nginx Proxy Manager respondía correctamente, pero al intentar acceder a Portainer devolvía un código de estado HTTP 502.
-*   **Causa:** Por motivos de seguridad nativos de su imagen, el binario de Portainer se inicializó escuchando únicamente sobre la interfaz de bucle invertido local (`127.0.0.1`), bloqueando los reenvíos de red internos del Proxy Inverso.
-*   **Diagnóstico:** Auditoría de logs en tiempo real mediante el comando `docker logs portainer_management`, localizando la línea: `server listening on http://127.0.0.1:9000`.
-*   **Solución:** Se inyectó el parámetro `command` en el servicio de Portainer dentro del archivo Compose: `command: -H unix:///var/run/docker.sock --address 0.0.0.0:9000`. Esto forzó al contenedor a escuchar en todas las interfaces virtuales (`0.0.0.0`), abriendo el pasillo de comunicación seguro con NPM.
-
-### 3. Bloqueo de Inicialización por Expiración de Tiempo (Contador de 5 Minutos)
-*   **Síntoma:** Al refrescar la pantalla tras un intento fallido de contraseña, Portainer mostraba el mensaje: *“Your Portainer instance timed out for security reasons”*.
-*   **Causa:** Portainer implementa un mecanismo de seguridad estricto que cierra la ventana de configuración si el usuario administrador no es creado en los primeros 5 minutos desde su arranque inicial.
-*   **Solución:** Se aplicó un reinicio directo del contenedor desde la terminal del host (`docker compose restart portainer`), restableciendo el temporizador de seguridad y permitiendo la creación exitosa del usuario maestro usando una política de contraseña robusta (mínimo 12 caracteres).
+1. **Error 502 Bad Gateway en Portainer (Aislamiento de Interfaces):**
+   * **Causa:** Por defecto, el binario de Portainer escuchaba únicamente en `127.0.0.1:9000`, rechazando conexiones provenientes del proxy inverso.
+   * **Solución:** Se inyectó el flag `--address 0.0.0.0:9000` en la directiva `command` del servicio para habilitar la escucha en la red interna de Docker.
+2. **Bloqueo de Inicialización de Portainer por Timeout:**
+   * **Causa:** Expiración de la ventana de seguridad de 5 minutos para configurar la contraseña maestra (mínimo 12 caracteres).
+   * **Solución:** Reinicio controlado del servicio (`docker compose restart portainer`) para restablecer el temporizador de inicialización.
+3. **Incompatibilidad de Métricas de CPU con cAdvisor en Kernels Modernos (`cgroups v2`):**
+   * **Causa:** Falta de telemetría por contenedor debido a diferencias en la lectura de rutas `cgroups v2` en versiones recientes de Ubuntu Server.
+   * **Solución:** Se migró la arquitectura de recolección hacia **Prometheus + Node Exporter**, garantizando métricas estables directamente desde el sistema anfitrión.
+4. **Fallo de Arranque en Prometheus por Sintaxis YAML:**
+   * **Causa:** Indentación inválida en `prometheus.yml` que provocaba un bucle de reinicio (`Restarting`) y error `connection refused` en Grafana.
+   * **Solución:** Reescritura limpia de la configuración mediante bloques heredoc (`cat << 'EOF'`) y recreación forzada del contenedor (`--force-recreate`).
