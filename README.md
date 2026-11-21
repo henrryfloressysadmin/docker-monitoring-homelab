@@ -1,4 +1,4 @@
-# 🚀 Homelab: Infraestructura Docker, Seguridad Zero-Trust y Observabilidad
+# 🚀 Homelab: Infraestructura Docker, Minima Exposición y Observabilidad
 
 Este repositorio contiene la arquitectura como código (IaC) de un entorno de infraestructura (*Homelab*) desplegado sobre **Ubuntu Server** (VirtualBox en modo *Bridge*) y administrado remotamente vía **SSH** desde un entorno anfitrión.
 
@@ -19,7 +19,7 @@ Este laboratorio implementa principios de seguridad defensiva y aislamiento por 
 1. **Punto de Entrada Único:** Únicamente los puertos de **Nginx Proxy Manager (`80`, `443`)** y su interfaz de administración (`81`) están expuestos hacia la red local.
 2. **Aislamiento de Servicios Internos:** Los contenedores de **Portainer (`9000`)**, **Nginx Web (`80`)**, **Prometheus (`9090`)**, **Node Exporter (`9100`)** y **Grafana (`3000`)** carecen de puertos mapeados hacia el host, quedando blindados frente a escaneos externos.
 3. **Enrutamiento por DNS Interno:** Todo el tráfico fluye a través de una red puente externa aislada (`red-publica-shared`). NPM actúa como intermediario enrutando peticiones mediante resolución de nombres internos de Docker (`portainer.local`, `miweb.local`, `grafana.local`).
-4. **Hardening de Privilegios:** Socket de Docker: se monta en Portainer con :ro. Esto solo impide escribir sobre el archivo del socket; no restringe la API de Docker, por lo que Portainer conserva control efectivo sobre el daemon. Mejora prevista: usar docker-socket-proxy para limitar los endpoints permitidos..
+4. **Hardening de Privilegios:** el socket de Docker (`/var/run/docker.sock`) se monta en Portainer con `:ro`. Esto solo impide escribir sobre el archivo del socket; **no restringe la API de Docker**, por lo que Portainer conserva control efectivo sobre el daemon. *Mejora prevista:* usar `docker-socket-proxy` para limitar los endpoints permitidos.
 
 ---
 ```mermaid
@@ -74,8 +74,8 @@ Añade las siguientes entradas en el archivo `hosts` de tu sistema operativo anf
 ### 2. Creación de Red e Inicialización
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/henrryfloressysadmin/proyecto-nginx-homelab.git
-cd proyecto-nginx-homelab
+git clone https://github.com/henrryfloressysadmin/docker-monitoring-homelab.git
+cd docker-monitoring-homelab
 
 # 2. Crear la red puente compartida externa
 docker network create red-publica-shared
