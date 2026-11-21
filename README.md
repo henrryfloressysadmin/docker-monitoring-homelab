@@ -22,7 +22,17 @@ Este laboratorio implementa principios de seguridad defensiva y aislamiento por 
 4. **Hardening de Privilegios:** El socket de Docker (`/var/run/docker.sock`) se monta en Portainer en modo de **Solo Lectura (`:ro`)** para mitigar riesgos de escalada de privilegios.
 
 ---
-
+---mermaid
+flowchart LR
+  A["Equipo anfitrión<br/>hosts + SSH"] -->|"80 / 443"| NPM["Nginx Proxy Manager"]
+  subgraph U["Ubuntu Server (Docker)"]
+    NPM --> P["Portainer"]
+    NPM --> W["Nginx web"]
+    NPM --> G["Grafana"]
+    G --> PR["Prometheus"]
+    PR --> NE["Node Exporter"]
+  end
+---  
 ## 📊 Capa de Observabilidad en Tiempo Real
 
 El entorno integra una solución completa de monitorización de hardware y rendimiento:
