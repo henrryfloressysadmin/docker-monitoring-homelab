@@ -19,7 +19,7 @@ Este laboratorio implementa principios de seguridad defensiva y aislamiento por 
 1. **Punto de Entrada Único:** Únicamente los puertos de **Nginx Proxy Manager (`80`, `443`)** y su interfaz de administración (`81`) están expuestos hacia la red local.
 2. **Aislamiento de Servicios Internos:** Los contenedores de **Portainer (`9000`)**, **Nginx Web (`80`)**, **Prometheus (`9090`)**, **Node Exporter (`9100`)** y **Grafana (`3000`)** carecen de puertos mapeados hacia el host, quedando blindados frente a escaneos externos.
 3. **Enrutamiento por DNS Interno:** Todo el tráfico fluye a través de una red puente externa aislada (`red-publica-shared`). NPM actúa como intermediario enrutando peticiones mediante resolución de nombres internos de Docker (`portainer.local`, `miweb.local`, `grafana.local`).
-4. **Hardening de Privilegios:** El socket de Docker (`/var/run/docker.sock`) se monta en Portainer en modo de **Solo Lectura (`:ro`)** para mitigar riesgos de escalada de privilegios.
+4. **Hardening de Privilegios:** Socket de Docker: se monta en Portainer con :ro. Esto solo impide escribir sobre el archivo del socket; no restringe la API de Docker, por lo que Portainer conserva control efectivo sobre el daemon. Mejora prevista: usar docker-socket-proxy para limitar los endpoints permitidos..
 
 ---
 ```mermaid
