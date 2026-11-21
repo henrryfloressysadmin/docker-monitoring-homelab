@@ -12,7 +12,7 @@ Este repositorio contiene la arquitectura como código (IaC) de un entorno de in
 
 ---
 
-## 🔒 Arquitectura de Red y Seguridad (Zero-Trust)
+## 🔒 Arquitectura de Red y Seguridad: Minima Exposición y Defensa en Profundidad
 
 Este laboratorio implementa principios de seguridad defensiva y aislamiento por capas para eliminar superficies de ataque innecesarias:
 
@@ -64,7 +64,7 @@ Añade las siguientes entradas en el archivo `hosts` de tu sistema operativo anf
 ### 2. Creación de Red e Inicialización
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com
+git clone https://github.com/henrryfloressysadmin/proyecto-nginx-homelab.git
 cd proyecto-nginx-homelab
 
 # 2. Crear la red puente compartida externa
